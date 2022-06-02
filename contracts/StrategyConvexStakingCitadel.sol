@@ -91,15 +91,15 @@ contract StrategyConvexStakingCitadel is
         _setTokenSwapPath(
             address(crv),
             address(wbtc),
-            address[] memory path
-        )
+            path
+        );
 
         path[0] = address(cvx);
         _setTokenSwapPath(
             address(cvx),
             address(wbtc),
-            address[] memory path
-        )
+            path
+        );
 
         // Approvals
         crv.safeApprove(sushiswap, MAX_UINT_256);
@@ -120,9 +120,9 @@ contract StrategyConvexStakingCitadel is
     }
 
     function setRewardsManagementRatio(
-        uint256 _autocompoundBps;
-        uint256 _emitBps;
-        uint256 _treasuryBps;
+        uint256 _autocompoundBps,
+        uint256 _emitBps,
+        uint256 _treasuryBps,
     ) external {
         _onlyGovernance();
         require(
