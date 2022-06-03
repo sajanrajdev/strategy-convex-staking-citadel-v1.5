@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: MIT
-
-pragma solidity ^0.6.11;
+pragma solidity 0.6.12;
 
 interface IVault {
     function token() external view returns (address);
@@ -28,6 +27,8 @@ interface IVault {
     function guardian() external view returns (address);
 
     function strategist() external view returns (address);
+
+    function treasury() external view returns (address);
 
     // External
     function deposit(uint256 _amount) external;
