@@ -62,8 +62,16 @@ contract StrategyConvexStakingCitadel is
     uint256 public emitBps; // Initial: 10% - Sell for wBTC and send to CTDL locker
     uint256 public treasuryBps; // Initial: 0% - Send to CTDL treasury
     uint256 public stableSwapSlippageTolerance; // Initial: 95%
-    address public citadelTreasury;
-    IStakedCitadelLocker public xCitadelLocker;
+    address public citadelTreasury; // Where treasury rewards will be directed
+    IStakedCitadelLocker public xCitadelLocker; // Where locking rewards will be distributed
+
+    // ===== Curve Settings ===== //
+    struct CurvePoolConfig {
+        address swap;
+        uint256 wbtcPosition;
+        uint256 numElements;
+    }
+    CurvePoolConfig public curvePool;
 
     /// @dev Initialize the Strategy with security settings as well as tokens
     /// @notice Proxies will set any non constant variable you declare as default value
@@ -73,7 +81,8 @@ contract StrategyConvexStakingCitadel is
         address _want,
         address _citadelTreasury,
         address _xCitadelLocker,
-        uint256 _pid
+        uint256 _pid,
+        CurvePoolConfig memory _curvePool
     ) public initializer {
         __BaseStrategy_init(_vault);
         want = _want;
@@ -83,6 +92,8 @@ contract StrategyConvexStakingCitadel is
         pid = _pid; // Core staking pool ID
         IBooster.PoolInfo memory poolInfo = booster.poolInfo(pid);
         baseRewardsPool = IBaseRewardsPool(poolInfo.crvRewards);
+
+        curvePool = CurvePoolConfig(_curvePool.swap, _curvePool.wbtcPosition, _curvePool.numElements);
 
         // Set inital rewards management ratio (treasuryBps = 0)
         autocompoundBps = 9_000;
@@ -112,6 +123,8 @@ contract StrategyConvexStakingCitadel is
         // Approvals
         crv.safeApprove(sushiswap, MAX_UINT_256);
         cvx.safeApprove(sushiswap, MAX_UINT_256);
+        wbtc.safeApprove(_curvePool.swap, MAX_UINT_256);
+        wbtc.safeApprove(_xCitadelLocker, MAX_UINT_256);
     }
 
     // === Permissioned Functions === //
@@ -207,6 +220,8 @@ contract StrategyConvexStakingCitadel is
     }
 
     function _harvest() internal override returns (TokenAmount[] memory harvested) {
+        harvested = new TokenAmount[](2);
+
         uint256 totalWantBefore = balanceOfWant();
 
         // Harvest rewards
@@ -236,9 +251,12 @@ contract StrategyConvexStakingCitadel is
             );
         }
 
+        // Report total wBTC acquired
+        uint256 wbtcBalance = wbtc.balanceOf(address(this));
+        harvested[1] = TokenAmount(address(wbtc), wbtcBalance);
+
         // Take performance fee on total harvested wBTC
         // NOTE:Can't use reportExtraToken() because it transfers the token to the Badger Tree
-        uint256 wbtcBalance = wbtc.balanceOf(address(this));
         uint256 governanceRewardsFee = _calculateFee(
             wbtcBalance,
             IVault(vault).performanceFeeGovernance()
@@ -264,24 +282,36 @@ contract StrategyConvexStakingCitadel is
         // Get wBTC balance after fees
         wbtcBalance = wbtc.balanceOf(address(this));
 
-        // If autocompound enabled, autocompound set %
+        // If autocompound is enabled, autocompound set %
         if (autocompoundBps > 0) {
-
+            uint256 autocompoundAmount = wbtcBalance.mul(autocompoundBps).div(MAX_BPS);
+            _add_liquidity_single_coin(
+                curvePool.swap, 
+                want, 
+                address(wbtc),
+                autocompoundAmount,
+                curvePool.wbtcPosition,
+                curvePool.numElements, 
+                0
+            );
+            uint256 totalWantAfter = balanceOfWant();
+            // Stake all want sitting in the strat
+            booster.deposit(pid, totalWantAfter, true);
+            harvested[0] = TokenAmount(want, totalWantAfter.sub(totalWantBefore));
         }
 
-        // If distribute to stakers enabled, distribute %
+        // If distribute to lockers is enabled, distribute %
         if (emitBps > 0) {
-            
+            uint256 emitAmount = wbtcBalance.mul(emitBps).div(MAX_BPS);
+            // NOTE: Strategy must be added as a reward distributor on the Locker
+            xCitadelLocker.notifyRewardAmount(address(wbtc), emitAmount);
         }
 
         // If ditribute to Citadel treasury is enabled, distribute %
         if (treasuryBps > 0) {
-            
+            uint256 treasuryAmount = wbtcBalance.mul(treasuryBps).div(MAX_BPS);
+            wbtc.safeTransfer(citadelTreasury, treasuryAmount);
         }
-
-        harvested = new TokenAmount[](2);
-        harvested[0] = TokenAmount(want, 0);
-        harvested[1] = TokenAmount(address(wbtc), 0);
 
         // keep this to get paid!
         _reportToVault(0);
