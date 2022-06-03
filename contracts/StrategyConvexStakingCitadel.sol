@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.6.12;
+pragma solidity ^0.6.11;
 pragma experimental ABIEncoderV2;
 
-import "deps/@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
-import "deps/@openzeppelin/contracts-upgradeable/math/SafeMathUpgradeable.sol";
-import "deps/@openzeppelin/contracts-upgradeable/math/MathUpgradeable.sol";
-import "deps/@openzeppelin/contracts-upgradeable/utils/AddressUpgradeable.sol";
-import "deps/@openzeppelin/contracts-upgradeable/token/ERC20/SafeERC20Upgradeable.sol";
-import "deps/@openzeppelin/contracts-upgradeable/utils/EnumerableSetUpgradeable.sol";
+import {IERC20Upgradeable} from "@openzeppelin-contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
+import {SafeMathUpgradeable} from "@openzeppelin-contracts-upgradeable/math/SafeMathUpgradeable.sol";
+import {MathUpgradeable} from "@openzeppelin-contracts-upgradeable/math/MathUpgradeable.sol";
+import {AddressUpgradeable} from "@openzeppelin-contracts-upgradeable/utils/AddressUpgradeable.sol";
+import {SafeERC20Upgradeable} from "@openzeppelin-contracts-upgradeable/token/ERC20/SafeERC20Upgradeable.sol";
 
 import "interfaces/convex/IBooster.sol";
 import "interfaces/convex/IBaseRewardsPool.sol";
@@ -30,7 +29,6 @@ contract StrategyConvexStakingCitadel is
     using SafeERC20Upgradeable for IERC20Upgradeable;
     using AddressUpgradeable for address;
     using SafeMathUpgradeable for uint256;
-    using EnumerableSetUpgradeable for EnumerableSetUpgradeable.AddressSet;
 
     // ===== Token Registry ===== // 
     IERC20Upgradeable public constant wbtc =
@@ -62,7 +60,7 @@ contract StrategyConvexStakingCitadel is
     uint256 public autocompoundBps; // Initial: 90% - Sell for more want and re-stake
     uint256 public emitBps; // Initial: 10% - Sell for wBTC and send to CTDL locker
     uint256 public treasuryBps; // Initial: 0% - Send to CTDL treasury
-    uint256 public stableSwapSlippageTolerance; // Initial 
+    uint256 public stableSwapSlippageTolerance; // Initial: 95%
 
     /// @dev Initialize the Strategy with security settings as well as tokens
     /// @notice Proxies will set any non constant variable you declare as default value
@@ -167,7 +165,7 @@ contract StrategyConvexStakingCitadel is
     /// @notice just unlock the funds and return the amount you could unlock
     function _withdrawSome(uint256 _amount) internal override returns (uint256) {
         // Get idle want in the strategy
-        uint256 _preWant = IERC20Upgradeable(want).balanceOf(address(this));
+        uint256 _preWant = balanceOfWant();
 
         // If we lack sufficient idle want, withdraw the difference from the strategy position
         if (_preWant < _amount) {
@@ -176,7 +174,7 @@ contract StrategyConvexStakingCitadel is
         }
 
         // Confirm how much want we actually end up with
-        uint256 _postWant = IERC20Upgradeable(want).balanceOf(address(this));
+        uint256 _postWant = balanceOfWant();
 
         // Return the actual amount withdrawn if less than requested
         return MathUpgradeable.min(_postWant, _amount);
@@ -189,7 +187,7 @@ contract StrategyConvexStakingCitadel is
     }
 
     function _harvest() internal override returns (TokenAmount[] memory harvested) {
-        uint256 totalWantBefore = balanceOfWant().add(balanceOfPool());
+        uint256 totalWantBefore = balanceOfWant();
 
         // Harvest rewards
         baseRewardsPool.getReward(address(this), true);
@@ -219,6 +217,7 @@ contract StrategyConvexStakingCitadel is
         }
 
         // Take performance fee on total harvested wBTC
+        // NOTE:Can't use reportExtraToken() because it transfers the token to the Badger Tree
         uint256 wbtcBalance = wbtc.balanceOf(address(this));
         uint256 governanceRewardsFee = _calculateFee(
             wbtcBalance,
@@ -251,7 +250,6 @@ contract StrategyConvexStakingCitadel is
 
         // If
 
-        // Nothing harvested, we have 2 tokens, return both 0s
         harvested = new TokenAmount[](2);
         harvested[0] = TokenAmount(want, 0);
         harvested[1] = TokenAmount(address(wbtc), 0);
@@ -281,8 +279,8 @@ contract StrategyConvexStakingCitadel is
         // Get CRV rewards amount
         uint256 crvAmount = baseRewardsPool.earned(address(this));
 
-        rewards[0] = TokenAmount(crv, crvAmount);
-        rewards[1] = TokenAmount(cvx, getMintableCVXRewards(crvAmount)); 
+        rewards[0] = TokenAmount(address(crv), crvAmount);
+        rewards[1] = TokenAmount(address(cvx), getMintableCVXRewards(crvAmount)); 
         return rewards;
     }
 
@@ -290,7 +288,7 @@ contract StrategyConvexStakingCitadel is
     function getMintableCVXRewards(uint256 _amount) public view returns (uint256) {
         uint256 cliffSize = cvx_minter.reductionPerCliff();
         uint256 cliffCount = cvx_minter.totalCliffs();
-        uint256 maxSupply = cvx_minter.max_supply();
+        uint256 maxSupply = cvx_minter.maxSupply();
 
         // Get total supply
         uint256 totalSupply = cvx_minter.totalSupply();
