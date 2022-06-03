@@ -144,7 +144,7 @@ contract StrategyConvexStakingCitadel is
     /// @notice It's very important all tokens that are meant to be in the strategy to be marked as protected
     /// @notice this provides security guarantees to the depositors they can't be sweeped away
     function getProtectedTokens() public view virtual override returns (address[] memory) {
-        address[] memory protectedTokens = new address[](2);
+        address[] memory protectedTokens = new address[](5);
         protectedTokens[0] = want;
         protectedTokens[1] = address(wbtc);
         protectedTokens[2] = address(ctdl);
