@@ -1,7 +1,7 @@
 import time
 
 from brownie import (
-    MyStrategy,
+    StrategyConvexStakingCitadel,
     TheVault,
     interface,
     accounts,
@@ -9,7 +9,13 @@ from brownie import (
 from _setup.config import (
     WANT, 
     WHALE_ADDRESS,
-
+    SWAP,
+    WBTC_POSITION,
+    NUM_ELEMENTS,
+    PID,
+    XCITADEL_LOCKER,
+    CITADEL_GOVERNANCE,
+    CITADEL_TREASURY,
     PERFORMANCE_FEE_GOVERNANCE,
     PERFORMANCE_FEE_STRATEGIST,
     WITHDRAWAL_FEE,
@@ -33,6 +39,9 @@ def deployer():
 def user():
     return accounts[9]
 
+@pytest.fixture
+def citadelTreasury():
+    return accounts.at(CITADEL_TREASURY, force=True)
 
 ## Fund the account
 @pytest.fixture
@@ -40,15 +49,11 @@ def want(deployer):
     """
         TODO: Customize this so you have the token you need for the strat
     """
-    TOKEN_ADDRESS = WANT
-    token = interface.IERC20Detailed(TOKEN_ADDRESS)
+    token = interface.IERC20Detailed(WANT)
     WHALE = accounts.at(WHALE_ADDRESS, force=True) ## Address with tons of token
 
-    token.transfer(deployer, token.balanceOf(WHALE), {"from": WHALE})
+    token.transfer(deployer, token.balanceOf(WHALE)/8, {"from": WHALE}) # Only transfer a portion
     return token
-
-
-
 
 @pytest.fixture
 def strategist():
@@ -67,7 +72,7 @@ def guardian():
 
 @pytest.fixture
 def governance():
-    return accounts[4]
+    return accounts.at(CITADEL_GOVERNANCE, force=True)
 
 @pytest.fixture
 def treasury():
@@ -83,14 +88,32 @@ def proxyAdmin():
 def randomUser():
     return accounts[7]
 
+
 @pytest.fixture
 def badgerTree():
     return accounts[8]
 
 
+@pytest.fixture
+def xCitadelLocker():
+    return interface.IStakedCitadelLocker(XCITADEL_LOCKER)
+
+
 
 @pytest.fixture
-def deployed(want, deployer, strategist, keeper, guardian, governance, proxyAdmin, randomUser, badgerTree):
+def deployed(
+    want,
+    deployer,
+    strategist,
+    keeper,
+    guardian,
+    governance,
+    proxyAdmin,
+    randomUser, 
+    badgerTree,
+    citadelTreasury,
+    xCitadelLocker,
+):
     """
     Deploys, vault and test strategy, mock token and wires them up.
     """
@@ -118,11 +141,30 @@ def deployed(want, deployer, strategist, keeper, guardian, governance, proxyAdmi
     vault.setStrategist(deployer, {"from": governance})
     # NOTE: TheVault starts unpaused
 
-    strategy = MyStrategy.deploy({"from": deployer})
-    strategy.initialize(vault, [want])
+    strategy = StrategyConvexStakingCitadel.deploy({"from": deployer})
+    strategy.initialize(
+        vault,
+        want,
+        citadelTreasury.address,
+        xCitadelLocker.address,
+        PID,
+        [
+            SWAP,
+            WBTC_POSITION,
+            NUM_ELEMENTS
+        ]
+    )
     # NOTE: Strategy starts unpaused
 
     vault.setStrategy(strategy, {"from": governance})
+
+    # Approve strategy as reward distributor on Locker
+    xCitadelLocker.approveRewardDistributor(
+        strategy.wbtc(),
+        strategy.address,
+        True,
+        {"from": governance}
+    )
 
     return DotMap(
         deployer=deployer,
@@ -136,7 +178,9 @@ def deployed(want, deployer, strategist, keeper, guardian, governance, proxyAdmi
         performanceFeeStrategist=PERFORMANCE_FEE_STRATEGIST,
         withdrawalFee=WITHDRAWAL_FEE,
         managementFee=MANAGEMENT_FEE,
-        badgerTree=badgerTree
+        badgerTree=badgerTree,
+        citadelTreasury=citadelTreasury,
+        xCitadelLocker=xCitadelLocker
     )
 
 
