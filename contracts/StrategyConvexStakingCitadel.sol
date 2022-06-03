@@ -147,9 +147,9 @@ contract StrategyConvexStakingCitadel is
         address[] memory protectedTokens = new address[](2);
         protectedTokens[0] = want;
         protectedTokens[1] = address(wbtc);
-        protectedTokens[1] = address(ctdl);
-        protectedTokens[1] = address(crv);
-        protectedTokens[1] = address(cvx);
+        protectedTokens[2] = address(ctdl);
+        protectedTokens[3] = address(crv);
+        protectedTokens[4] = address(cvx);
         return protectedTokens;
     }
 
