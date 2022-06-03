@@ -19,6 +19,7 @@ import "deps/libraries/TokenSwapPathRegistry.sol";
 
 import {BaseStrategy} from "@badger-finance/BaseStrategy.sol";
 import {IVault} from "interfaces/badger/IVault.sol";
+import {IStakedCitadelLocker} from "interfaces/citadel/IStakedCitadelLocker.sol";
 
 contract StrategyConvexStakingCitadel is
     BaseStrategy,
@@ -61,16 +62,25 @@ contract StrategyConvexStakingCitadel is
     uint256 public emitBps; // Initial: 10% - Sell for wBTC and send to CTDL locker
     uint256 public treasuryBps; // Initial: 0% - Send to CTDL treasury
     uint256 public stableSwapSlippageTolerance; // Initial: 95%
+    address public citadelTreasury;
+    IStakedCitadelLocker public xCitadelLocker;
 
     /// @dev Initialize the Strategy with security settings as well as tokens
     /// @notice Proxies will set any non constant variable you declare as default value
     /// @dev add any extra changeable variable at end of initializer as shown
-    function initialize(address _vault, address _want, uint256 _pid) public initializer {
+    function initialize(
+        address _vault,
+        address _want,
+        address _citadelTreasury,
+        address _xCitadelLocker,
+        uint256 _pid
+    ) public initializer {
         __BaseStrategy_init(_vault);
         want = _want;
+        citadelTreasury = _citadelTreasury;
+        xCitadelLocker = IStakedCitadelLocker(_xCitadelLocker);
 
         pid = _pid; // Core staking pool ID
-
         IBooster.PoolInfo memory poolInfo = booster.poolInfo(pid);
         baseRewardsPool = IBaseRewardsPool(poolInfo.crvRewards);
 
@@ -115,6 +125,16 @@ contract StrategyConvexStakingCitadel is
     function setstableSwapSlippageTolerance(uint256 _sl) external {
         _onlyGovernance();
         stableSwapSlippageTolerance = _sl;
+    }
+
+    function setCitadelTreasury(address _citadelTreasury) external {
+        _onlyGovernance();
+        citadelTreasury = _citadelTreasury;
+    }
+
+    function setXCitadelLocker(address _xCitadelLocker) external {
+        _onlyGovernance();
+        xCitadelLocker = IStakedCitadelLocker(_xCitadelLocker);
     }
 
     function setRewardsManagementRatio(
@@ -245,10 +265,19 @@ contract StrategyConvexStakingCitadel is
         wbtcBalance = wbtc.balanceOf(address(this));
 
         // If autocompound enabled, autocompound set %
+        if (autocompoundBps > 0) {
 
-        // If distribute to stakers enabled, distribute % to stakers
+        }
 
-        // If
+        // If distribute to stakers enabled, distribute %
+        if (emitBps > 0) {
+            
+        }
+
+        // If ditribute to Citadel treasury is enabled, distribute %
+        if (treasuryBps > 0) {
+            
+        }
 
         harvested = new TokenAmount[](2);
         harvested[0] = TokenAmount(want, 0);
