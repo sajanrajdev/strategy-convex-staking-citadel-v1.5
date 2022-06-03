@@ -56,6 +56,7 @@ contract StrategyConvexStakingCitadel is
     // ======== Constants ======== //
     uint256 public constant MAX_EMIT_BPS = 2_000;
     uint256 public constant MAX_UINT_256 = uint256(-1);
+    bytes32 public constant dataTypeHash = keccak256("treasury-yield");;
 
     // ==== Manager Settings ==== //
     uint256 public autocompoundBps; // Initial: 90% - Sell for more want and re-stake
@@ -256,7 +257,8 @@ contract StrategyConvexStakingCitadel is
         harvested[1] = TokenAmount(address(wbtc), wbtcBalance);
 
         // Take performance fee on total harvested wBTC
-        // NOTE:Can't use reportExtraToken() because it transfers the token to the Badger Tree
+        // NOTE: Can't use reportExtraToken() because it transfers the token to the Badger Tree.
+        // An alternative to the event emitting is required.
         uint256 governanceRewardsFee = _calculateFee(
             wbtcBalance,
             IVault(vault).performanceFeeGovernance()
@@ -304,7 +306,7 @@ contract StrategyConvexStakingCitadel is
         if (emitBps > 0) {
             uint256 emitAmount = wbtcBalance.mul(emitBps).div(MAX_BPS);
             // NOTE: Strategy must be added as a reward distributor on the Locker
-            xCitadelLocker.notifyRewardAmount(address(wbtc), emitAmount);
+            xCitadelLocker.notifyRewardAmount(address(wbtc), emitAmount, dataTypeHash);
         }
 
         // If ditribute to Citadel treasury is enabled, distribute %
@@ -313,7 +315,8 @@ contract StrategyConvexStakingCitadel is
             wbtc.safeTransfer(citadelTreasury, treasuryAmount);
         }
 
-        // keep this to get paid!
+        // NOTE: Reporting 0 to avoid further fee processing. An alternative to
+        // the avent emitting and accounting is required.
         _reportToVault(0);
 
         return harvested;
