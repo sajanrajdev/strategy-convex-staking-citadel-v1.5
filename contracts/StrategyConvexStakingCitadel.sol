@@ -56,7 +56,7 @@ contract StrategyConvexStakingCitadel is
     // ======== Constants ======== //
     uint256 public constant MAX_EMIT_BPS = 2_000;
     uint256 public constant MAX_UINT_256 = uint256(-1);
-    bytes32 public constant dataTypeHash = keccak256("treasury-yield");;
+    bytes32 public constant dataTypeHash = keccak256("treasury-yield");
 
     // ==== Manager Settings ==== //
     uint256 public autocompoundBps; // Initial: 90% - Sell for more want and re-stake
