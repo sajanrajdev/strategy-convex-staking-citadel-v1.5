@@ -122,6 +122,7 @@ contract StrategyConvexStakingCitadel is
         );
 
         // Approvals
+        IERC20Upgradeable(want).approve(address(booster), MAX_UINT_256);
         crv.safeApprove(sushiswap, MAX_UINT_256);
         cvx.safeApprove(sushiswap, MAX_UINT_256);
         wbtc.safeApprove(_curvePool.swap, MAX_UINT_256);
