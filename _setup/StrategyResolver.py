@@ -54,8 +54,8 @@ class StrategyResolver(StrategyCoreResolver):
                 "sett.getPricePerFullShare"
             )
             # Check that we re-deposit tokens
-            assert after.balances("want", "baseRewardsPool") > before.balances(
-                "want", "baseRewardsPool"
+            assert after.balances("convexLpToken", "baseRewardsPool") > before.balances(
+                "convexLpToken", "baseRewardsPool"
             )
         
         if emitBps > 0:
@@ -75,6 +75,11 @@ class StrategyResolver(StrategyCoreResolver):
             assert after.balances("wbtc", "citadelTreasury") > before.balances(
                 "wbtc", "citadelTreasury"
             )
+
+        # Ensure that fees are processed
+        assert after.balances("wbtc", "treasury") > before.balances(
+            "wbtc", "treasury"
+        )
 
         assert True
 

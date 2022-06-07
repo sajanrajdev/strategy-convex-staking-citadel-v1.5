@@ -238,9 +238,9 @@ class StrategyCoreResolver:
         # 2.
         ## Accurately check user got the expected amount
         # Amount of want expected to be withdrawn
-        expected_want = from_shares_to_want(
-            shares_to_burn, ppfs_before_withdraw, vault_decimals
-        )
+        expected_want = Decimal(
+            params["amount"] * before.get("sett.balance")
+        ) / Decimal(before.get("sett.totalSupply"))
 
         # Want in the strategy should be decreased, if idle in sett is insufficient to cover withdrawal
         if expected_want > before.balances("want", "sett"):
