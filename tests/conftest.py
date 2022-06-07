@@ -195,6 +195,10 @@ def strategy(deployed):
     return deployed.strategy
 
 
+@pytest.fixture
+def wbtc(deployed):
+    return interface.IERC20Detailed(deployed.strategy.wbtc())
+
 
 @pytest.fixture
 def tokens(deployed):
