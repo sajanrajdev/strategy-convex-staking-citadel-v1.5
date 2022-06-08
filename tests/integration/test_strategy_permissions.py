@@ -65,7 +65,9 @@ def test_strategy_action_permissions(deployer, vault, strategy, want, keeper):
 
     for actor in authorizedActors:
         chain.sleep(10000 * 13)  ## 10k blocks per harvest
+        chain.snapshot()
         strategy.harvest({"from": actor})
+        chain.revert()
 
     # (if tendable) tend: onlyAuthorizedActors
     if tendable:
