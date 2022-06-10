@@ -116,6 +116,38 @@ def test_strategy_action_permissions(deployer, vault, strategy, want, keeper):
             with brownie.reverts("onlyGovernanceOrStrategist"):
                 vault.sweepExtraToken(vault, {"from": actor})
 
+    # setPid
+    for actor in actorsToCheck:
+        if actor == strategy.governance():
+            strategy.setPid(2, {"from": actor})
+        else:
+            with brownie.reverts("onlyGovernance"):
+                strategy.setPid(2, {"from": actor})
+
+    # setCitadelTreasury
+    for actor in actorsToCheck:
+        if actor == strategy.governance():
+            strategy.setCitadelTreasury(accounts[2], {"from": actor})
+        else:
+            with brownie.reverts("onlyGovernance"):
+                strategy.setCitadelTreasury(accounts[2], {"from": actor})
+
+    # setXCitadelLocker
+    for actor in actorsToCheck:
+        if actor == strategy.governance():
+            strategy.setXCitadelLocker(accounts[2], {"from": actor})
+        else:
+            with brownie.reverts("onlyGovernance"):
+                strategy.setXCitadelLocker(accounts[2], {"from": actor})
+
+    # setRewardsManagementRatio
+    for actor in actorsToCheck:
+        if actor == strategy.governance():
+            strategy.setRewardsManagementRatio(7000, 1000, 2000, {"from": actor})
+        else:
+            with brownie.reverts("onlyGovernance"):
+                strategy.setRewardsManagementRatio(7000, 1000, 2000, {"from": actor})
+
 
 def test_strategy_pausing_permissions(deployer, vault, strategy, want, keeper):
     # Setup
