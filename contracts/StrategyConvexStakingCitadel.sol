@@ -74,6 +74,32 @@ contract StrategyConvexStakingCitadel is
     }
     CurvePoolConfig public curvePool;
 
+    // ===== Events ===== //
+
+    // Emitted for the autocompounded amount, increase in pricePerFullShare (ppfs)
+    event Harvested(
+        address indexed token,
+        uint256 amount,
+        uint256 indexed blockNumber,
+        uint256 timestamp
+    );
+
+    // Emitted when distributing assets to the Citadel Locker
+    event LockerDistribution(
+        address indexed token,
+        uint256 amount,
+        uint256 indexed blockNumber,
+        uint256 timestamp
+    );
+
+    // Emitted when distributing assets to the Citadel Treasury
+    event TreasuryDistribution(
+        address indexed token,
+        uint256 amount,
+        uint256 indexed blockNumber,
+        uint256 timestamp
+    );
+
     /// @dev Initialize the Strategy with security settings as well as tokens
     /// @notice Proxies will set any non constant variable you declare as default value
     /// @dev add any extra changeable variable at end of initializer as shown
@@ -224,6 +250,8 @@ contract StrategyConvexStakingCitadel is
     function _harvest() internal override returns (TokenAmount[] memory harvested) {
         harvested = new TokenAmount[](2);
 
+        uint256 harvestedAmount;
+
         uint256 totalWantBefore = balanceOfWant();
 
         // Harvest rewards
@@ -253,9 +281,7 @@ contract StrategyConvexStakingCitadel is
             );
         }
 
-        // Report total wBTC acquired
         uint256 wbtcBalance = wbtc.balanceOf(address(this));
-        harvested[1] = TokenAmount(address(wbtc), wbtcBalance);
 
         // Take performance fee on total harvested wBTC
         // NOTE: Can't use reportExtraToken() because it transfers the token to the Badger Tree.
@@ -282,7 +308,7 @@ contract StrategyConvexStakingCitadel is
             );
         }
 
-        // Get wBTC balance after fees
+        // Get new wBTC balance after fees
         wbtcBalance = wbtc.balanceOf(address(this));
 
         // If autocompound is enabled, autocompound set %
@@ -300,25 +326,50 @@ contract StrategyConvexStakingCitadel is
             uint256 totalWantAfter = balanceOfWant();
             // Stake all want sitting in the strat
             booster.deposit(pid, totalWantAfter, true);
-            harvested[0] = TokenAmount(want, totalWantAfter.sub(totalWantBefore));
+            harvestedAmount = totalWantAfter.sub(totalWantBefore);
         }
+
+        // Report total wBTC without autocompounding portion (Includes fees)
+        harvested[1] = TokenAmount(
+            address(wbtc),
+            wbtc.balanceOf(address(this)).add(governanceRewardsFee).add(strategistRewardsFee)
+        );
 
         // If distribute to lockers is enabled, distribute %
         if (emitBps > 0) {
             uint256 emitAmount = wbtcBalance.mul(emitBps).div(MAX_BPS);
             // NOTE: Strategy must be added as a reward distributor on the Locker
             xCitadelLocker.notifyRewardAmount(address(wbtc), emitAmount, dataTypeHash);
+
+            emit LockerDistribution(
+                address(wbtc),
+                emitAmount,
+                block.number,
+                block.timestamp
+            );
         }
 
         // If ditribute to Citadel treasury is enabled, distribute %
         if (treasuryBps > 0) {
             uint256 treasuryAmount = wbtcBalance.mul(treasuryBps).div(MAX_BPS);
             wbtc.safeTransfer(citadelTreasury, treasuryAmount);
+
+            emit TreasuryDistribution(
+                address(wbtc),
+                treasuryAmount,
+                block.number,
+                block.timestamp
+            );
         }
 
-        // NOTE: Reporting 0 to avoid further fee processing. An alternative to
-        // the avent emitting and accounting is required.
-        _reportToVault(0);
+        // If no autocompound, reports 0
+        harvested[0] = TokenAmount(want, harvestedAmount);
+        emit Harvested(
+            want,
+            harvestedAmount,
+            block.number,
+            block.timestamp
+        );
 
         return harvested;
     }
