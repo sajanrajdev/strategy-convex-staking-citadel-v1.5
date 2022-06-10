@@ -178,7 +178,7 @@ contract StrategyConvexStakingCitadel is
     ) external {
         _onlyGovernance();
         require(
-            _autocompoundBps + _emitBps + _treasuryBps <= MAX_BPS,
+            _autocompoundBps + _emitBps + _treasuryBps == MAX_BPS,
             "Invalid Total Ratio" 
         );
         require(_emitBps < MAX_EMIT_BPS, "Invalid Emit BPS");
