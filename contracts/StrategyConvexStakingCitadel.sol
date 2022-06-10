@@ -62,7 +62,6 @@ contract StrategyConvexStakingCitadel is
     uint256 public autocompoundBps; // Initial: 90% - Sell for more want and re-stake
     uint256 public emitBps; // Initial: 10% - Sell for wBTC and send to CTDL locker
     uint256 public treasuryBps; // Initial: 0% - Send to CTDL treasury
-    uint256 public stableSwapSlippageTolerance; // Initial: 95%
     address public citadelTreasury; // Where treasury rewards will be directed
     IStakedCitadelLocker public xCitadelLocker; // Where locking rewards will be distributed
 
@@ -119,9 +118,6 @@ contract StrategyConvexStakingCitadel is
         autocompoundBps = 9_000;
         emitBps = 1_000;
 
-        // Set default slippage value (95%)
-        stableSwapSlippageTolerance = 9_500;
-
         // Set token swap paths
         address[] memory path = new address[](3);
         path[0] = address(crv);
@@ -154,11 +150,6 @@ contract StrategyConvexStakingCitadel is
         pid = _pid; // LP token pool ID
         IBooster.PoolInfo memory poolInfo = booster.poolInfo(pid);
         baseRewardsPool = IBaseRewardsPool(poolInfo.crvRewards);
-    }
-
-    function setstableSwapSlippageTolerance(uint256 _sl) external {
-        _onlyGovernance();
-        stableSwapSlippageTolerance = _sl;
     }
 
     function setCitadelTreasury(address _citadelTreasury) external {
