@@ -1,5 +1,5 @@
 import time
-
+from helpers.time import days
 from brownie import (
     StrategyConvexStakingCitadel,
     TheVault,
@@ -165,6 +165,13 @@ def deployed(
         True,
         {"from": governance}
     )
+
+    ## Reset rewards if they are set to expire within the next 4 days or are expired already
+    rewardsPool = interface.IBaseRewardsPool(strategy.baseRewardsPool())
+    if rewardsPool.periodFinish() - int(time.time()) < days(4):
+        booster = interface.IBooster(strategy.booster())
+        booster.earmarkRewards(PID, {"from": deployer})
+        console.print("[green]BaseRewardsPool expired or expiring soon - it was reset![/green]")
 
     return DotMap(
         deployer=deployer,
