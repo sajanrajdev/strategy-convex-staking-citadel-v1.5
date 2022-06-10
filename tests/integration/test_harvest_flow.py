@@ -1,8 +1,13 @@
 import brownie
-from brownie import *
+from brownie import interface, chain, accounts, history
 from helpers.constants import MaxUint256
 from helpers.SnapshotManager import SnapshotManager
+import time
 from helpers.time import days
+from rich.console import Console
+from _setup.config import PID
+
+console = Console()
 
 
 def test_deposit_withdraw_single_user_flow(deployer, vault, strategy, want, keeper):
@@ -81,6 +86,13 @@ def test_single_user_harvest_flow(
 
     with brownie.reverts("onlyAuthorizedActors"):
         strategy.harvest({"from": randomUser})
+
+    ## Reset rewards if they are set to expire within the next 4 days or are expired already
+    rewardsPool = interface.IBaseRewardsPool(strategy.baseRewardsPool())
+    if rewardsPool.periodFinish() - int(time.time()) < days(4):
+        booster = interface.IBooster(strategy.booster())
+        booster.earmarkRewards(PID, {"from": deployer})
+        console.print("[green]BaseRewardsPool expired or expiring soon - it was reset![/green]")
 
     snap.settHarvest({"from": keeper})
 
@@ -228,6 +240,13 @@ def test_single_user_harvest_flow_remove_fees(deployer, vault, strategy, want, k
 
     chain.sleep(days(3))
     chain.mine()
+
+    ## Reset rewards if they are set to expire within the next 4 days or are expired already
+    rewardsPool = interface.IBaseRewardsPool(strategy.baseRewardsPool())
+    if rewardsPool.periodFinish() - int(time.time()) < days(4):
+        booster = interface.IBooster(strategy.booster())
+        booster.earmarkRewards(PID, {"from": deployer})
+        console.print("[green]BaseRewardsPool expired or expiring soon - it was reset![/green]")
 
     snap.settHarvest({"from": keeper})
 
