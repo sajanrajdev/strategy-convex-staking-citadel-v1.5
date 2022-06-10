@@ -6,6 +6,9 @@ from helpers.time import days
 from rich.console import Console
 from _setup.config import PID
 from helpers.SnapshotManager import SnapshotManager
+from helpers.utils import (
+    approx,
+)
 
 console = Console()
 
@@ -52,7 +55,11 @@ def test_expected_CVX_rewards_match_minted(deployer, vault, strategy, want, keep
 
     # First Transfer event from harvest() function is emitted by cvx._mint()
     tx = strategy.harvest({"from": keeper})
-    assert tx.events["Transfer"][0]["value"] == cvx_amount
+    assert approx(
+        tx.events["Transfer"][0]["value"],
+        cvx_amount,
+        1,
+    )
 
 
 def test_different_distribution_split_results(deployer, vault, strategy, want, keeper, governance):
