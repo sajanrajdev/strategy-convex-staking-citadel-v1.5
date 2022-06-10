@@ -383,7 +383,8 @@ contract StrategyConvexStakingCitadel is
         return rewards;
     }
 
-    // Reference: https://docs.convexfinance.com/convexfinanceintegration/cvx-minting
+    /// @dev Returns the expected amount of CVX to be minted given an amount of CRV rewards
+    /// @notice Reference: https://docs.convexfinance.com/convexfinanceintegration/cvx-minting
     function getMintableCVXRewards(uint256 _amount) public view returns (uint256) {
         uint256 cliffSize = cvx_minter.reductionPerCliff();
         uint256 cliffCount = cvx_minter.totalCliffs();
