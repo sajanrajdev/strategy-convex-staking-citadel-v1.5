@@ -44,9 +44,10 @@ class StrategyResolver(StrategyCoreResolver):
         self.manager.printCompare(before, after)
         self.confirm_harvest_state(before, after, tx)
 
-        autocompoundBps = self.manager.strategy.autocompoundBps()
-        emitBps = self.manager.strategy.emitBps()
-        treasuryBps = self.manager.strategy.treasuryBps()
+        strategy = self.manager.strategy
+        autocompoundBps = strategy.autocompoundBps()
+        emitBps = strategy.emitBps()
+        treasuryBps = strategy.treasuryBps()
 
         if autocompoundBps > 0:
             # Check that we autocompounded
@@ -57,24 +58,55 @@ class StrategyResolver(StrategyCoreResolver):
             assert after.balances("convexLpToken", "baseRewardsPool") > before.balances(
                 "convexLpToken", "baseRewardsPool"
             )
+            # Check event
+            event = tx.events["Harvested"][0]
+            assert event["token"] == strategy.want()
+            assert event["amount"] > 0
+
+        else:
+            # Check that we autocompounded
+            assert after.get("sett.getPricePerFullShare") == before.get(
+                "sett.getPricePerFullShare"
+            )
+            # Check that we re-deposit tokens
+            assert after.balances("convexLpToken", "baseRewardsPool") == before.balances(
+                "convexLpToken", "baseRewardsPool"
+            )
+            event = tx.events["Harvested"][0]
+            assert event["token"] == strategy.want()
+            assert event["amount"] == 0
         
         if emitBps > 0:
             # Check that wBTC was distributed to Locker
             assert after.balances("wbtc", "xCitadelLocker") > before.balances(
                 "wbtc", "xCitadelLocker"
             )
-            # Check event
+            # Check events
             event = tx.events["RewardAdded"][0]
-            assert event["account"] == self.manager.strategy.address
-            assert event["_token"] == self.manager.strategy.wbtc()
+            assert event["account"] == strategy.address
+            assert event["_token"] == strategy.wbtc()
             assert event["_reward"] > 0
             assert event["_dataTypeHash"] == "0xaf388c3c3157dbb1999fecd2348a129dd286852ceddb9352feabbffbac7ca99b"
+
+            event = tx.events["CustomDistribution"][0]
+            assert event["token"] == strategy.wbtc()
+            assert event["destination"] == strategy.xCitadelLocker()
+            assert event["amount"] > 0
 
         if treasuryBps > 0:
             # Check that wBTC was distributed to Citadel's treasury
             assert after.balances("wbtc", "citadelTreasury") > before.balances(
                 "wbtc", "citadelTreasury"
             )
+
+            # Check event
+            if emitBps > 0:
+                event = tx.events["CustomDistribution"][1]
+            else:
+                event = tx.events["CustomDistribution"][0]
+            assert event["token"] == strategy.wbtc()
+            assert event["destination"] == strategy.citadelTreasury()
+            assert event["amount"] > 0
 
         # Ensure that fees are processed
         assert after.balances("wbtc", "treasury") > before.balances(
