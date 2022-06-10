@@ -88,7 +88,7 @@ class StrategyResolver(StrategyCoreResolver):
             assert event["_reward"] > 0
             assert event["_dataTypeHash"] == "0xaf388c3c3157dbb1999fecd2348a129dd286852ceddb9352feabbffbac7ca99b"
 
-            event = tx.events["CustomDistribution"][0]
+            event = tx.events["TokenDistribution"][0]
             assert event["token"] == strategy.wbtc()
             assert event["destination"] == strategy.xCitadelLocker()
             assert event["amount"] > 0
@@ -101,9 +101,9 @@ class StrategyResolver(StrategyCoreResolver):
 
             # Check event
             if emitBps > 0:
-                event = tx.events["CustomDistribution"][1]
+                event = tx.events["TokenDistribution"][1]
             else:
-                event = tx.events["CustomDistribution"][0]
+                event = tx.events["TokenDistribution"][0]
             assert event["token"] == strategy.wbtc()
             assert event["destination"] == strategy.citadelTreasury()
             assert event["amount"] > 0

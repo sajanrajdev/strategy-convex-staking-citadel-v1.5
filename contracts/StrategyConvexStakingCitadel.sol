@@ -85,7 +85,7 @@ contract StrategyConvexStakingCitadel is
     );
 
     // Emitted when distributing assets to the Citadel Locker and Treasury
-    event CustomDistribution (
+    event TokenDistribution (
         address indexed token,
         address indexed destination,
         uint256 amount,
@@ -334,7 +334,7 @@ contract StrategyConvexStakingCitadel is
             // NOTE: Strategy must be added as a reward distributor on the Locker
             xCitadelLocker.notifyRewardAmount(address(wbtc), emitAmount, dataTypeHash);
 
-            emit CustomDistribution(
+            emit TokenDistribution(
                 address(wbtc),
                 address(xCitadelLocker),
                 emitAmount,
@@ -348,7 +348,7 @@ contract StrategyConvexStakingCitadel is
             uint256 treasuryAmount = wbtcBalance.mul(treasuryBps).div(MAX_BPS);
             wbtc.safeTransfer(citadelTreasury, treasuryAmount);
 
-            emit CustomDistribution(
+            emit TokenDistribution(
                 address(wbtc),
                 citadelTreasury,
                 treasuryAmount,
