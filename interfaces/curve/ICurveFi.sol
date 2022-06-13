@@ -145,4 +145,9 @@ interface ICurveFi {
         external
         view
         returns (uint256 out);
+
+    function calc_token_amount(uint256[2] calldata amounts)
+        external
+        view
+        returns (uint256);
 }

@@ -118,4 +118,11 @@ contract CurveSwapper is BaseSwapper {
     ) internal {
         ICurveFi(swap).remove_liquidity_one_coin(_token_amount, i, _min_amount);
     }
+
+    function _calc_token_amount(
+        address pool,
+        uint256[2] memory amounts
+    ) internal returns (uint256) {
+        return ICurveFi(pool).calc_token_amount(amounts);
+    }
 }

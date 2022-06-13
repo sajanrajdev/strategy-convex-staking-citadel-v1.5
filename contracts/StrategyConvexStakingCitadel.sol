@@ -63,6 +63,7 @@ contract StrategyConvexStakingCitadel is
     uint256 public emitBps; // Initial: 10% - Sell for wBTC and send to CTDL locker
     uint256 public treasuryBps; // Initial: 0% - Send to CTDL treasury
     address public citadelTreasury; // Where treasury rewards will be directed
+    uint256 public slippageTolerance; // Initial: 95%
     IStakedCitadelLocker public xCitadelLocker; // Where locking rewards will be distributed
 
     // ===== Curve Settings ===== //
@@ -118,6 +119,9 @@ contract StrategyConvexStakingCitadel is
         autocompoundBps = 9_000;
         emitBps = 1_000;
 
+        // Set default slippage value (95%)
+        slippageTolerance = 9_500;
+
         // Set token swap paths
         address[] memory path = new address[](3);
         path[0] = address(crv);
@@ -150,6 +154,11 @@ contract StrategyConvexStakingCitadel is
         pid = _pid; // LP token pool ID
         IBooster.PoolInfo memory poolInfo = booster.poolInfo(pid);
         baseRewardsPool = IBaseRewardsPool(poolInfo.crvRewards);
+    }
+
+    function setSlippageTolerance(uint256 _sl) external {
+        _onlyGovernance();
+        slippageTolerance = _sl;
     }
 
     function setCitadelTreasury(address _citadelTreasury) external {
@@ -297,6 +306,10 @@ contract StrategyConvexStakingCitadel is
         // If autocompound is enabled, autocompound set %
         if (autocompoundBps > 0) {
             uint256 autocompoundAmount = wbtcBalance.mul(autocompoundBps).div(MAX_BPS);
+            uint256[2] memory amounts;
+            amounts[1] = autocompoundAmount;
+            uint256 minAmountOut = _calc_token_amount(curvePool.swap, amounts); // Estimated LP output amount given input
+
             _add_liquidity_single_coin(
                 curvePool.swap, 
                 want, 
@@ -304,8 +317,9 @@ contract StrategyConvexStakingCitadel is
                 autocompoundAmount,
                 curvePool.wbtcPosition,
                 curvePool.numElements, 
-                0
+                minAmountOut.mul(slippageTolerance).div(MAX_BPS) // Slippage check
             );
+
             uint256 totalWantAfter = balanceOfWant();
             // Stake all want sitting in the strat
             booster.deposit(pid, totalWantAfter, true);
